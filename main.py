@@ -1,35 +1,66 @@
 import cv2
 import serial
+import numpy as np
 import time
 
 # ตั้งค่าพอร์ต serial เพื่อเชื่อมต่อกับ Arduino
 arduino = serial.Serial('/dev/ttyACM0', 9600)  # '/dev/ttyACM0' คือพอร์ตของ Arduino
 time.sleep(2)  # รอให้การเชื่อมต่อเสถียร
 
-# เริ่มใช้ OpenCV
-cap = cv2.VideoCapture(0)  # เปิดกล้องเว็บแคม
-
 # ฟังก์ชันส่งข้อมูลไปยัง Arduino
 def send_angle(servo_index, angle):
     command = f"{servo_index} {angle}\n"
     arduino.write(command.encode())
+
+# ฟังก์ชันสำหรับการตรวจจับมือ
+def detect_hand_movement(frame):
+    # แปลงภาพจาก BGR เป็น HSV
+    hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+    
+    # กำหนดช่วงสีของผิวหนัง (สามารถปรับค่าได้ตามต้องการ)
+    lower_skin = np.array([0, 20, 70], dtype=np.uint8)
+    upper_skin = np.array([20, 255, 255], dtype=np.uint8)
+    
+    # สร้างหน้ากากสำหรับตรวจจับผิวหนัง
+    mask = cv2.inRange(hsv, lower_skin, upper_skin)
+    
+    # ใช้การทำให้หน้ากากเรียบเนียนเพื่อกรองสัญญาณรบกวน
+    mask = cv2.GaussianBlur(mask, (5, 5), 0)
+    
+    # หาเส้นขอบและวัตถุในหน้ากาก
+    contours, _ = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    
+    # หากมีการตรวจพบวัตถุ
+    if len(contours) > 0:
+        max_contour = max(contours, key=cv2.contourArea)  # หา contour ที่มีขนาดใหญ่ที่สุด
+        if cv2.contourArea(max_contour) > 1000:  # ตรวจสอบขนาดของ contour
+            x, y, w, h = cv2.boundingRect(max_contour)
+            center_x = x + w // 2
+            center_y = y + h // 2
+            return (center_x, center_y)
+    
+    return None
+
+# เริ่มใช้ OpenCV
+cap = cv2.VideoCapture(0)  # เปิดกล้องเว็บแคม
 
 while True:
     ret, frame = cap.read()
     if not ret:
         break
     
-    # แปลงเป็นภาพขาวดำเพื่อความง่ายในการประมวลผล
-    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    cv2.imshow('Video', frame)
-
-    # ตัวอย่างการประมวลผลภาพ เช่น การกำหนดค่ามุมสำหรับเซอร์โวแต่ละตัว
-    # คุณสามารถเขียนเงื่อนไขการควบคุมเพิ่มเติมได้ตามที่คุณต้องการ
-    angles = [90, 45, 30, 60, 120, 150]  # ตัวอย่างค่ามุมสำหรับเซอร์โว 6 ตัว
-
-    # ส่งมุมไปยัง Arduino
-    for i in range(6):
-        send_angle(i + 1, angles[i])  # ส่งหมายเลขเซอร์โว (1-6) และมุม
+    # ตรวจจับการเคลื่อนไหวของมือ
+    hand_position = detect_hand_movement(frame)
+    
+    if hand_position:
+        # แสดงตำแหน่งที่ตรวจพบมือบนหน้าจอ
+        cv2.circle(frame, hand_position, 10, (255, 0, 0), -1)
+        
+        # กำหนดมุมสำหรับเซอร์โวจากตำแหน่งของมือ (ปรับเงื่อนไขได้ตามต้องการ)
+        angle = int(hand_position[0] / frame.shape[1] * 180)  # แปลงตำแหน่งแนวนอนเป็นมุม (0-180 องศา)
+        send_angle(1, angle)  # ส่งมุมไปยังเซอร์โว 1
+        
+    cv2.imshow('Hand Detection', frame)
 
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break
