@@ -25,7 +25,6 @@ while True:
     if not ret:
         break
 
-    # แปลงสีภาพจาก BGR เป็น RGB
     rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     results = hands.process(rgb_frame)
 
