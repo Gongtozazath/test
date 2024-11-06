@@ -17,17 +17,14 @@ def detect_hand_movement(frame):
     # แปลงภาพจาก BGR เป็น HSV
     hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
     
-    # กำหนดช่วงสีของผิวหนัง (สามารถปรับค่าได้ตามต้องการ)
     lower_skin = np.array([0, 20, 70], dtype=np.uint8)
     upper_skin = np.array([20, 255, 255], dtype=np.uint8)
     
-    # สร้างหน้ากากสำหรับตรวจจับผิวหนัง
     mask = cv2.inRange(hsv, lower_skin, upper_skin)
     
-    # ใช้การทำให้หน้ากากเรียบเนียนเพื่อกรองสัญญาณรบกวน
     mask = cv2.GaussianBlur(mask, (5, 5), 0)
     
-    # หาเส้นขอบและวัตถุในหน้ากาก
+    # หาเส้นขอบและวัตถุ
     contours, _ = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
     
     # หากมีการตรวจพบวัตถุ
