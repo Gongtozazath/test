@@ -34,15 +34,27 @@ while True:
 
             # ตรวจจับตำแหน่งที่สนใจ (เช่น ข้อมือ, ข้อนิ้ว)
             wrist = hand_landmarks.landmark[mp_hands.HandLandmark.WRIST]
+            index_finger = hand_landmarks.landmark[mp_hands.HandLandmark.INDEX_FINGER_TIP]
+            elbow = hand_landmarks.landmark[mp_hands.HandLandmark.MIDDLE_FINGER_MCP]  # จุดสมมุติใกล้ศอก
+
+            # คำนวณตำแหน่งสำหรับจุดต่างๆ
             wrist_x = int(wrist.x * frame.shape[1])
             wrist_y = int(wrist.y * frame.shape[0])
+            index_x = int(index_finger.x * frame.shape[1])
+            index_y = int(index_finger.y * frame.shape[0])
+            elbow_x = int(elbow.x * frame.shape[1])
+            elbow_y = int(elbow.y * frame.shape[0])
 
-            # วาดจุดข้อมือ
+            # วาดจุดต่างๆ
             cv2.circle(frame, (wrist_x, wrist_y), 10, (255, 0, 0), -1)
+            cv2.circle(frame, (index_x, index_y), 10, (0, 255, 0), -1)
+            cv2.circle(frame, (elbow_x, elbow_y), 10, (0, 0, 255), -1)
 
-            # คำนวณมุมสำหรับเซอร์โวจากตำแหน่งของข้อมือ
-            angle = int(wrist_x / frame.shape[1] * 180)  # แปลงตำแหน่งแนวนอนเป็นมุม (0-180 องศา)
-            send_angle(1, angle)  # ส่งมุมไปยังเซอร์โว 1
+            # คำนวณมุมหรือระยะห่างสำหรับเซอร์โวจากตำแหน่งที่ตรวจจับได้
+            angle_wrist = int(wrist_x / frame.shape[1] * 180)
+            angle_index = int(index_y / frame.shape[0] * 180)
+            send_angle(1, angle_wrist)  # ส่งมุมไปยังเซอร์โว 1
+            send_angle(2, angle_index)  # ส่งมุมไปยังเซอร์โว 2
 
     cv2.imshow('Hand and Arm Detection', frame)
 
